@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+  "net/http"
+  "fmt"
+  )
 
 func main() {
-    fmt.Printf("Hello, Universe!\n")
+  fmt.Println("Hello, Universe!")
+  
+  http.Handle("/", http.FileServer(http.Dir("./public")))
+  
+  err := http.ListenAndServe(":8080", nil)
+  if err != nil {
+    panic("Error: " + err.Error())
+  }
 }
