@@ -9,6 +9,7 @@ func main() {
   fmt.Println("Hello, Universe!")
   
   http.Handle("/", http.FileServer(http.Dir("./public")))
+  http.Handle("/ws", serveWebsockets)
   
   err := http.ListenAndServe(":8080", nil)
   if err != nil {
