@@ -14,7 +14,7 @@ func (b *Broadcaster) Setup() {
 func (b *Broadcaster) loopAdding() {
   for {
     select {
-      case connection, ok := <- add:
+      case connection, ok := (<-add):
         if (ok) {
           b.addConnection(connection)
         }
@@ -24,9 +24,9 @@ func (b *Broadcaster) loopAdding() {
 
 func (b *Broadcaster) loopBroadcasting() {
   for {
-    for connection := range b.connections {
+    for connection, _ := range b.connections {
       select {
-      case data, ok := <- connection.read:
+      case data, ok := (<-connection.read):
         if (!ok) {
           b.removeConnection(connection)
         }
@@ -34,17 +34,20 @@ func (b *Broadcaster) loopBroadcasting() {
         b.Broadcast(data)
 
       default:
+        // nothing there. just looping
       }
     }
   }
 }
 
 func (b *Broadcaster) Broadcast(data) {
-  for connection := range b.connections {
+  for connection, _ := range b.connections {
     select {
       case connection.write <- data:
+        // sent data to write pipe
 
       default:
+        // so agressive?
         b.removeConnection(connection)
     }
   }
@@ -62,7 +65,7 @@ func (b *Broadcaster) removeConnection(connection) {
 
 //  Global variables
 //
-var iBroadcaster = Broadcaster {}
+var iBroadcaster := new(Broadcaster)
 iBroadcaster.Setup()
 
 // Handles websocket requests from the peer
@@ -79,7 +82,7 @@ func serveWebsockets(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  connection = Connection{ ws: ws }
+  connection := &Connection{ ws: ws }
 
   iBroadcaster.add <- connection
 }
