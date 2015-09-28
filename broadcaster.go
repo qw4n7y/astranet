@@ -1,25 +1,16 @@
-package main
+package astranet
+
+import (
+  "net/http"
+  "fmt"
+)
 
 type Broadcaster struct {
   connections   map[*Connection]bool
-
-  add           chan *Connection
 }
 
 func (b *Broadcaster) Setup() {
-  go b.loopAdding()
   go b.loopBroadcasting()
-}
-
-func (b *Broadcaster) loopAdding() {
-  for {
-    select {
-      case connection, ok := (<-add):
-        if (ok) {
-          b.addConnection(connection)
-        }
-    }
-  }
 }
 
 func (b *Broadcaster) loopBroadcasting() {
@@ -28,7 +19,7 @@ func (b *Broadcaster) loopBroadcasting() {
       select {
       case data, ok := (<-connection.read):
         if (!ok) {
-          b.removeConnection(connection)
+          b.Remove(connection)
         }
 
         b.Broadcast(data)
@@ -40,7 +31,9 @@ func (b *Broadcaster) loopBroadcasting() {
   }
 }
 
-func (b *Broadcaster) Broadcast(data) {
+//  Broadcasts data to every connection
+//
+func (b *Broadcaster) Broadcast(data []byte) {
   for connection, _ := range b.connections {
     select {
       case connection.write <- data:
@@ -48,25 +41,28 @@ func (b *Broadcaster) Broadcast(data) {
 
       default:
         // so agressive?
-        b.removeConnection(connection)
+        b.Remove(connection)
     }
   }
 }
 
-func (b *Broadcaster) addConnection(connection) {
+//  Adds new connection
+//
+func (b *Broadcaster) Add(connection *Connection) {
   b.connections[connection] = true
   connection.Setup()
+
+  fmt.Printf("%s was added\n", connection)
 }
 
-func (b *Broadcaster) removeConnection(connection) {
+//  Removes new connection
+//
+func (b *Broadcaster) Remove(connection *Connection) {
   delete(b.connections, connection)
   connection.Close()
-}
 
-//  Global variables
-//
-var iBroadcaster := new(Broadcaster)
-iBroadcaster.Setup()
+  fmt.Printf("%s was removed\n", connection)
+}
 
 // Handles websocket requests from the peer
 //
@@ -78,11 +74,11 @@ func serveWebsockets(w http.ResponseWriter, r *http.Request) {
 
   ws, err := upgrader.Upgrade(w, r, nil)
   if err != nil {
-    log.Println(err)
+    fmt.Println(err)
     return
   }
 
   connection := &Connection{ ws: ws }
 
-  iBroadcaster.add <- connection
+  iBroadcaster.Add(connection)
 }
